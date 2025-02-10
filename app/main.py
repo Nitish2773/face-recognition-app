@@ -21,7 +21,7 @@ logging.basicConfig(
 
 app = Flask(__name__)
 CORS(app)
-ef initialize_firebase_credentials():
+def initialize_firebase_credentials():
     """
     Initialize Firebase credentials from environment variable
     """

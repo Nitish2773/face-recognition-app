@@ -280,7 +280,7 @@ class FaceTrainer:
 
 def main():
     # Paths to credentials - replace with your actual paths
-    FIREBASE_CRED_PATH = "C:/CertifySecure/certify-36ea0-firebase-adminsdk-uekjq-37e7e9448b.json"
+    FIREBASE_CRED_PATH = "C:/face-recognition-app/certify-36ea0-firebase-adminsdk-uekjq-37e7e9448b.json"
     DRIVE_CRED_PATH = "C:/face-recognition-app/face-recognition-app-450504-fbfd29689a93.json"
     
     # Folder ID for the specific user's folder

@@ -1,332 +1,178 @@
-import os
-import logging
-import base64
-import tempfile
-import numpy as np
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 import cv2
 import pickle
+import logging
+import os
+import numpy as np
 import firebase_admin
 from firebase_admin import credentials, firestore
 from datetime import datetime
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from sklearn.neighbors import KNeighborsClassifier
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+# Load environment variables
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
-
-# Create Flask application
 app = Flask(__name__)
 CORS(app)
 
-def debug_environment():
-    """Log environment details for debugging"""
-    logging.info("=== Environment Debug ===")
-    logging.info(f"Current Working Directory: {os.getcwd()}")
-    logging.info(f"Script Directory: {os.path.dirname(os.path.abspath(__file__))}")
-    
-    logging.info("\n=== Environment Variables ===")
-    for key, value in os.environ.items():
-        if any(tag in key.lower() for tag in ['cred', 'firebase', 'path']):
-            logging.info(f"{key}: {value}")
-
-def initialize_firebase_credentials():
-    """
-    Initialize Firebase credentials with comprehensive error handling
-    """
-    try:
-        # Get Firebase credentials path from environment variable
-        firebase_cred_path = os.getenv('FIREBASE_CRED_PATH')
-        
-        # Log all potential paths for debugging
-        logging.info(f"Attempting to load credentials from: {firebase_cred_path}")
-        
-        if not firebase_cred_path:
-            logging.error("FIREBASE_CRED_PATH environment variable not set")
-            debug_environment()
-            return None
-        
-        # Normalize and expand path
-        firebase_cred_path = os.path.abspath(os.path.expanduser(firebase_cred_path))
-        
-        # Detailed path verification
-        if not os.path.exists(firebase_cred_path):
-            logging.error(f"Firebase credentials file not found: {firebase_cred_path}")
-            
-            # List files in the directory for debugging
-            try:
-                directory = os.path.dirname(firebase_cred_path)
-                logging.info(f"Files in directory {directory}:")
-                for file in os.listdir(directory):
-                    logging.info(file)
-            except Exception as list_error:
-                logging.error(f"Error listing directory: {list_error}")
-            
-            return None
-        
-        logging.info(f"Firebase credentials loaded from: {firebase_cred_path}")
-        return firebase_cred_path
-    
-    except Exception as e:
-        logging.error(f"Firebase credentials initialization error: {e}")
-        return None
-
 class FaceRecognizer:
-    def __init__(self, firebase_cred_path):
-        # Initialize Firebase
+    def __init__(self):
         try:
-            logging.info(f"Attempting to initialize Firebase with: {firebase_cred_path}")
-            
-            # Initialize Firebase
-            cred = credentials.Certificate(firebase_cred_path)
+            # Get Firebase credentials
+            if os.getenv('FIREBASE_CRED_PATH'):
+                # Option 1: Using credential file path
+                cred = credentials.Certificate(os.getenv('FIREBASE_CRED_PATH'))
+            else:
+                # Option 2: Using environment variables
+                firebase_cred = {
+                    "type": os.getenv("FIREBASE_TYPE"),
+                    "project_id": os.getenv("FIREBASE_PROJECT_ID"),
+                    "private_key_id": os.getenv("FIREBASE_PRIVATE_KEY_ID"),
+                    "private_key": os.getenv("FIREBASE_PRIVATE_KEY").replace('\\n', '\n') if os.getenv("FIREBASE_PRIVATE_KEY") else None,
+                    "client_email": os.getenv("FIREBASE_CLIENT_EMAIL"),
+                    "client_id": os.getenv("FIREBASE_CLIENT_ID"),
+                    "auth_uri": os.getenv("FIREBASE_AUTH_URI"),
+                    "token_uri": os.getenv("FIREBASE_TOKEN_URI"),
+                    "auth_provider_x509_cert_url": os.getenv("FIREBASE_AUTH_PROVIDER_CERT_URL"),
+                    "client_x509_cert_url": os.getenv("FIREBASE_CLIENT_CERT_URL")
+                }
+                cred = credentials.Certificate(firebase_cred)
+
             if not firebase_admin._apps:
                 firebase_admin.initialize_app(cred)
-            
             self.db = firestore.client()
-            logging.info("Firebase initialized successfully")
+            print("Firebase initialized successfully")
         except Exception as e:
-            logging.error(f"Firebase initialization failed: {e}")
-            raise
+            print(f"Failed to initialize Firebase: {e}")
+            exit(1)
 
-        # Model and detection configurations
-        self.MODEL_PATH = os.getenv('MODEL_PATH', "model/face_recognition_model.pkl")
+        # Get model paths from environment variables or use defaults
+        self.MODEL_PATH = os.getenv('MODEL_PATH', "model/face_recognition_model.yml")
         self.LABEL_DICT_PATH = os.getenv('LABEL_DICT_PATH', "model/label_dict.pkl")
         
         self.face_cascade = cv2.CascadeClassifier(
             cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
         )
-        
         self.load_recognizer()
 
-    def load_recognizer(self):
-        """Load pre-trained face recognition model"""
-        try:
-            # Verify model paths exist with absolute paths
-            model_path = os.path.abspath(self.MODEL_PATH)
-            label_path = os.path.abspath(self.LABEL_DICT_PATH)
-            
-            if not os.path.exists(model_path):
-                raise FileNotFoundError(f"Model file not found: {model_path}")
-            
-            if not os.path.exists(label_path):
-                raise FileNotFoundError(f"Label dictionary not found: {label_path}")
-            
-            # Load scikit-learn model
-            with open(model_path, "rb") as f:
-                self.face_recognizer = pickle.load(f)
-            
-            # Load label dictionary
-            with open(label_path, "rb") as f:
-                self.label_dict = pickle.load(f)
-            
-            logging.info("Model and label dictionary loaded successfully")
-        except Exception as e:
-            logging.error(f"Model loading error: {e}")
-            raise
 
-    def preprocess_image(self, image):
-        """Preprocess and extract face from image"""
+    def load_recognizer(self):
         try:
-            # Convert to grayscale
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            
-            # Enhance image quality
-            gray = cv2.equalizeHist(gray)
-            
-            # Detect faces
-            faces = self.face_cascade.detectMultiScale(
-                gray,
+            self.face_recognizer = cv2.face.LBPHFaceRecognizer_create()
+            self.face_recognizer.read(self.MODEL_PATH)
+            with open(self.LABEL_DICT_PATH, "rb") as f:
+                self.label_dict = pickle.load(f)
+            print("Model and label dictionary loaded successfully")
+        except Exception as e:
+            print(f"Error loading model or label dictionary: {e}")
+            exit(1)
+
+    def preprocess_image(self, image_path):
+        try:
+            img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+            if img is None:
+                print(f"Could not read image: {image_path}")
+                return None
+
+            img = cv2.equalizeHist(img)
+            faces_detected = self.face_cascade.detectMultiScale(
+                img,
                 scaleFactor=1.1,
                 minNeighbors=5,
                 minSize=(30, 30)
             )
-            
-            if len(faces) == 0:
-                logging.warning("No faces detected")
+
+            if len(faces_detected) == 0:
+                print("No faces detected in image")
                 return None
-            
-            # Take first detected face
-            x, y, w, h = faces[0]
-            face = gray[y:y+h, x:x+w]
-            
-            # Resize for recognition
-            face = cv2.resize(face, (200, 200))
+
+            x, y, w, h = faces_detected[0]
+            face = cv2.resize(img[y:y+h, x:x+w], (200, 200))
             return face
-        
+
         except Exception as e:
-            logging.error(f"Image preprocessing error: {e}")
+            print(f"Error processing image: {e}")
             return None
 
-    def recognize_face(self, image):
-        """Recognize face and retrieve user information"""
-        try:
-            # Preprocess image
-            face = self.preprocess_image(image)
-            
-            if face is None:
-                return None, None
-            
-            # Flatten the face for prediction
-            face_flattened = face.flatten()
-            
-            # Predict using scikit-learn KNN
-            try:
-                prediction = self.face_recognizer.predict([face_flattened])
-                label = prediction[0]
-                
-                # Find the corresponding user ID
-                for user_id, user_info in self.label_dict.items():
-                    if user_info['index'] == label:
-                        # Additional verification from Firestore
-                        user_ref = self.db.collection('users').document(user_id)
-                        user_doc = user_ref.get()
-                        
-                        if user_doc.exists:
-                            user_data = user_doc.to_dict()
-                            
-                            # Log recognition event
-                            self.log_recognition_event(user_id)
-                            
-                            return {
-                                'id': user_id,
-                                'name': user_data.get('name', 'Unknown'),
-                                'role': user_data.get('role', 'Unknown')
-                            }, 1.0  # Confidence for KNN is typically 1.0
-                
-                # If no user found
-                return None, None
-            
-            except Exception as e:
-                logging.error(f"Prediction error: {e}")
-                return None, None
-        
-        except Exception as e:
-            logging.error(f"Face recognition error: {e}")
+    def recognize_face(self, image_path):
+        face = self.preprocess_image(image_path)
+        if face is None:
             return None, None
 
-    def log_recognition_event(self, user_id):
-        """Log recognition event to Firestore"""
         try:
-            events_ref = self.db.collection('recognition_events')
-            events_ref.add({
-                'user_id': user_id,
-                'timestamp': datetime.now(),
-                'method': 'face_recognition'
-            })
+            label, confidence = self.face_recognizer.predict(face)
+            person_info = self.label_dict.get(label, {"id": "Unknown", "role": "Unknown"})
+            
+            print(f"\n=== Recognition Attempt ===")
+            print(f"ID: {person_info['id']}")
+            print(f"Confidence: {confidence}")
+            
+            user_ref = self.db.collection('users').document(person_info['id'])
+            user_doc = user_ref.get()
+            
+            if user_doc.exists:
+                user_data = user_doc.to_dict()
+                person_info['role'] = user_data.get('role', 'Unknown')
+                
+                if confidence > 200:
+                    print("Recognition Failed: Confidence too low")
+                    return None, None
+                    
+                print(f"Recognition Successful!")
+                print(f"Role: {person_info['role']}")
+                print("========================\n")
+                return person_info, confidence
+            else:
+                print(f"User {person_info['id']} not found in Firebase")
+                return None, None
+
         except Exception as e:
-            logging.error(f"Event logging error: {e}")
+            print(f"Error during face recognition: {e}")
+            return None, None
 
-def create_recognizer():
-    """Create recognizer with comprehensive error handling"""
-    try:
-        # Debug environment
-        debug_environment()
-        
-        # Get Firebase credentials path
-        firebase_cred_path = initialize_firebase_credentials()
-        
-        if not firebase_cred_path:
-            logging.critical("Failed to obtain Firebase credentials")
-            return None
-        
-        # Create and return recognizer
-        recognizer = FaceRecognizer(firebase_cred_path)
-        return recognizer
-    
-    except Exception as e:
-        logging.critical(f"Failed to initialize recognizer: {e}")
-        return None
-
-# Initialize recognizer
-recognizer = create_recognizer()
+recognizer = FaceRecognizer()
 
 @app.route('/recognize', methods=['POST'])
 def api_recognize():
-    # Check if recognizer is initialized
-    if recognizer is None:
+    if 'image' not in request.files:
         return jsonify({
             "success": False,
-            "message": "Face recognition service not available"
-        }), 500
+            "message": "No image file provided"
+        }), 400
 
     try:
-        if 'image' not in request.files:
-            return jsonify({
-                "success": False,
-                "message": "No image uploaded"
-            }), 400
-
-        # Save uploaded image
         image_file = request.files['image']
-        image = cv2.imdecode(np.frombuffer(image_file.read(), np.uint8), cv2.IMREAD_COLOR)
+        os.makedirs('temp', exist_ok=True)
+        image_path = os.path.join('temp', image_file.filename)
+        image_file.save(image_path)
 
-        # Recognize
-        person_info, confidence = recognizer.recognize_face(image)
+        person_info, confidence = recognizer.recognize_face(image_path)
+        os.remove(image_path)
 
         if person_info:
             return jsonify({
                 "success": True,
-                "user_id": person_info['id'],
-                "name": person_info.get('name', 'Unknown'),
+                "id": person_info['id'],
                 "role": person_info['role'],
                 "confidence": float(confidence)
             })
         else:
             return jsonify({
                 "success": False,
-                "message": "Face not recognized"
-            }), 404
+                "message": "Face not recognized or confidence too low"
+            }), 400
 
     except Exception as e:
-        logging.error(f"API recognition error: {e}")
+        print(f"Error processing request: {e}")
         return jsonify({
             "success": False,
             "message": "Internal server error"
         }), 500
 
-@app.route('/health', methods=['GET'])
-def health_check():
-    """Comprehensive health check endpoint"""
-    try:
-        # Check if recognizer is initialized
-        if recognizer is None:
-            return jsonify({
-                "success": False,
-                "message": "Recognizer not initialized"
-            }), 500
-        
-        # Check Firebase connection
-        users_ref = recognizer.db.collection('users')
-        users = users_ref.limit(1).get()
-        
-        return jsonify({
-            "success": True,
-            "message": "Service is healthy",
-            "recognizer_loaded": True,
-            "firebase_connected": True
-        }), 200
-    
-    except Exception as e:
-        logging.error(f"Health check failed: {e}")
-        return jsonify({
-            "success": False,
-            "message": f"Service is not healthy: {str(e)}"
-        }), 500
-
 if __name__ == "__main__":
-    # Additional error handling for startup
-    if recognizer is None:
-        logging.critical("Failed to start server due to recognizer initialization failure")
-        exit(1)
-    
-    # Use PORT environment variable or default to 5000
-    port = int(os.getenv('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    print("\n=== Face Recognition Server Starting ===")
+    print("Server running on http://localhost:5000")
+    print("Waiting for recognition requests...")
+    print("=====================================\n")
+    app.run(host='0.0.0.0', port=5000, debug=False)

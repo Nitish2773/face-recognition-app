@@ -5,18 +5,19 @@ import pickle
 import logging
 import firebase_admin
 from firebase_admin import credentials, firestore
-
+from dotenv import load_dotenv
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+load_dotenv()
 
 class FaceTrainer:
     def __init__(self):
         # Get Firebase credentials path from environment variable
-         firebase_cred_path = os.getenv('FIREBASE_CRED_PATH', '/etc/secrets/firebase-credentials.json')
+        firebase_cred_path = os.getenv('FIREBASE_CRED_PATH')
         
         if not firebase_cred_path:
             logging.error("FIREBASE_CRED_PATH environment variable not set")

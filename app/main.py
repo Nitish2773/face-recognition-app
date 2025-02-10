@@ -5,6 +5,8 @@ import numpy as np
 import pickle
 import os
 import logging
+import base64
+import tempfile
 import firebase_admin
 from firebase_admin import credentials, firestore
 from datetime import datetime
@@ -20,6 +22,45 @@ logging.basicConfig(
 app = Flask(__name__)
 CORS(app)
 
+def initialize_firebase_credentials():
+    """
+    Initialize Firebase credentials from environment variable
+    Supports both file path and base64 encoded credentials
+    """
+    try:
+        # Try to get Firebase credentials path or base64 encoded credentials
+        firebase_cred_path = os.getenv('FIREBASE_CRED_PATH')
+        
+        if not firebase_cred_path:
+            logging.error("FIREBASE_CRED_PATH environment variable not set")
+            return None
+        
+        # Check if it's a base64 encoded string
+        try:
+            # Attempt to decode base64
+            decoded_creds = base64.b64decode(firebase_cred_path)
+            
+            # Create a temporary file with decoded credentials
+            with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.json') as temp_file:
+                temp_file.write(decoded_creds)
+                temp_file_path = temp_file.name
+            
+            logging.info("Firebase credentials loaded from base64 encoded string")
+            return temp_file_path
+        
+        except Exception as base64_error:
+            # If not base64, treat as file path
+            if os.path.exists(firebase_cred_path):
+                logging.info("Firebase credentials loaded from file path")
+                return firebase_cred_path
+            else:
+                logging.error(f"Firebase credentials file not found: {firebase_cred_path}")
+                return None
+    
+    except Exception as e:
+        logging.error(f"Firebase credentials initialization error: {e}")
+        return None
+
 class FaceRecognizer:
     def __init__(self, firebase_cred_path):
         # Initialize Firebase
@@ -34,8 +75,8 @@ class FaceRecognizer:
             raise
 
         # Model and detection configurations
-        self.MODEL_PATH = "model/face_recognition_model.pkl"
-        self.LABEL_DICT_PATH = "model/label_dict.pkl"
+        self.MODEL_PATH = os.getenv('MODEL_PATH', "model/face_recognition_model.pkl")
+        self.LABEL_DICT_PATH = os.getenv('LABEL_DICT_PATH', "model/label_dict.pkl")
         
         self.face_cascade = cv2.CascadeClassifier(
             cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
@@ -152,11 +193,20 @@ class FaceRecognizer:
             logging.error(f"Event logging error: {e}")
 
 # Flask Routes
-def create_recognizer():
-    """Create recognizer with error handling"""
+ef create_recognizer():
+    """Create recognizer with comprehensive error handling"""
     try:
-        # Replace with your actual Firebase credentials path
-        return FaceRecognizer("FIREBASE_CRED_PATH")
+        # Get Firebase credentials path
+        firebase_cred_path = initialize_firebase_credentials()
+        
+        if not firebase_cred_path:
+            logging.critical("Failed to obtain Firebase credentials")
+            return None
+        
+        # Create and return recognizer
+        recognizer = FaceRecognizer(firebase_cred_path)
+        return recognizer
+    
     except Exception as e:
         logging.critical(f"Failed to initialize recognizer: {e}")
         return None
@@ -210,21 +260,31 @@ def api_recognize():
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Simple health check endpoint"""
+    """Comprehensive health check endpoint"""
     try:
+        # Check if recognizer is initialized
+        if recognizer is None:
+            return jsonify({
+                "success": False,
+                "message": "Recognizer not initialized"
+            }), 500
+        
         # Check Firebase connection
-        self.db.collection('users').limit(1).get()
+        users_ref = recognizer.db.collection('users')
+        users = users_ref.limit(1).get()
         
         return jsonify({
             "success": True,
             "message": "Service is healthy",
-            "recognizer_loaded": recognizer is not None
+            "recognizer_loaded": True,
+            "firebase_connected": True
         }), 200
+    
     except Exception as e:
         logging.error(f"Health check failed: {e}")
         return jsonify({
             "success": False,
-            "message": "Service is not healthy"
+            "message": f"Service is not healthy: {str(e)}"
         }), 500
 
 if __name__ == "__main__":
@@ -233,4 +293,6 @@ if __name__ == "__main__":
         logging.critical("Failed to start server due to recognizer initialization failure")
         exit(1)
     
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    # Use PORT environment variable or default to 5000
+    port = int(os.getenv('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)

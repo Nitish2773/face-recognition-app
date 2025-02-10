@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: face-recognition-app
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: FIREBASE_CRED_PATH
+        value: /etc/secrets/firebase-credentials.json
+    secrets:
+      - name: firebase-credentials
+        mountPath: /etc/secrets/firebase-credentials.json

@@ -22,7 +22,7 @@ class FaceRecognizer:
             # Get Firebase credentials
             if os.getenv('FIREBASE_CRED_PATH'):
                 # Option 1: Using credential file path
-                cred = credentials.Certificate(os.getenv('FIREBASE_CRED_PATH'))
+                cred = credentials.Certificate(os.getenv('FIREBASE_CRED_PATH', '/etc/secrets/firebase-credentials.json'))
             else:
                 # Option 2: Using environment variables
                 firebase_cred = {

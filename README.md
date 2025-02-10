@@ -17,28 +17,21 @@ CertifySecure is a Flask-based face recognition system utilizing OpenCV and Haar
 - **Firebase Admin SDK** for user management and authentication.
 - **Real-time authentication logs** for security monitoring.
 
-## 🛠 Technical Architecture
+## 🫠 Technical Architecture
 
-### Project Structure
+### Updated Project Structure
 ```
-face-recognition-app/
-│
-├── app/
-│   ├── main.py        # Face recognition processing
-│   ├── train.py       # Model training script
-│
-├── utils/
-│   ├── firebase_utils.py  # Firebase authentication integration
-│   ├── drive_utils.py     # Google Drive storage integration
-│
-├── models/
-│   ├── label.pkl   # Encoded label data
-│   ├── face_recognition_model.pkl  # Trained face recognition model
-│
-├── .env              # Environment variables configuration
-├── run.py            # Entry point to start Flask app
-├── Dockerfile        # Docker container setup
-├── requirements.txt  # Required dependencies
+C:\face-recognition-app\app\
+├── main.py              # Face recognition processing
+├── setup_local.py       # Local setup script
+├── train.py             # Model training script
+├── utils/               # Utility functions
+├── dataset/             # Training dataset storage
+├── model/               # Trained models storage
+├── secrets/
+│   └── firebase-credentials  # Firebase credentials stored securely (no .json extension)
+├── temp/                # Temporary storage for image processing
+└── .env                 # Environment variables configuration
 ```
 
 ### Technology Stack
@@ -85,7 +78,7 @@ pip install -r requirements.txt
 cp .env.example .env  # Configure Firebase and Google Drive credentials
 
 # Run Flask App
-python run.py
+python main.py
 ```
 
 ## 🔐 Security Measures
@@ -126,6 +119,25 @@ def recognize_face():
 - **Google Cloud Run / AWS Lambda** for scalable hosting
 - **Render** for easy deployment with auto-scaling
 
+### **Render Deployment Configuration**
+Create a `render.yaml` file in the project root:
+```yaml
+services:
+  - type: web
+    name: face-recognition-app
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: RENDER
+        value: true
+    secrets:
+      - name: firebase-credentials  # Remove .json extension
+        mountPath: /etc/secrets/firebase-credentials  # Remove .json extension
+```
+
 ### **Deploying on Render**
 
 1. **Sign Up for Render** at [Render](https://render.com/).
@@ -134,11 +146,11 @@ def recognize_face():
 4. **Select Environment**:
    - **Runtime**: Python 3.9+
    - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `gunicorn --bind 0.0.0.0:5000 run:app`
+   - **Start Command**: `python main.py`
 5. **Add Environment Variables** (from `.env` file).
 6. **Deploy & Monitor Logs**.
 
-## 📝 Setting Up Google Drive API
+## 🔒 Setting Up Google Drive API
 
 ### **Steps to Get `credentials.json` for Google Drive API**
 1. **Go to** [Google Cloud Console](https://console.cloud.google.com/).
@@ -154,9 +166,9 @@ def recognize_face():
 2. **Select Your Project**.
 3. **Go to Project Settings** → **Service Accounts**.
 4. **Generate a new private key**.
-5. **Download the JSON file** and store it in the project directory.
+5. **Download the JSON file** and store it in `secrets/firebase-credentials`.
 
-## 📄 Licensing
+## 📝 Licensing
 - Open-source under the **MIT License**
 
 ## 🤝 Contributing
@@ -167,5 +179,3 @@ def recognize_face():
 
 ## 📞 Contact & Support
 - **Email**: [support@Nitish](mailto:nitishkamisetti123@gmail.com)
-
-

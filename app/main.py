@@ -156,7 +156,7 @@ def create_recognizer():
     """Create recognizer with error handling"""
     try:
         # Replace with your actual Firebase credentials path
-        return FaceRecognizer("C:/CertifySecure/certify-36ea0-firebase-adminsdk-uekjq-37e7e9448b.json")
+        return FaceRecognizer("FIREBASE_CRED_PATH")
     except Exception as e:
         logging.critical(f"Failed to initialize recognizer: {e}")
         return None

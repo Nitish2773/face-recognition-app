@@ -52,14 +52,54 @@ class FaceRecognizer:
             print(f"Current working directory: {os.getcwd()}")
             print(f"Directory contents: {os.listdir('.')}")
             exit(1)
-        # Get model paths from environment variables or use defaults
-        self.MODEL_PATH = os.getenv('MODEL_PATH', "model/face_recognition_model.yml")
-        self.LABEL_DICT_PATH = os.getenv('LABEL_DICT_PATH', "model/label_dict.pkl")
-        
-        self.face_cascade = cv2.CascadeClassifier(
-            cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-        )
-        self.load_recognizer()
+        # Get base directory
+            base_dir = os.path.abspath(os.path.dirname(__file__))
+            
+            # Set model paths
+            self.MODEL_PATH = os.path.join(base_dir, "model", "face_recognition_model.yml")
+            self.LABEL_DICT_PATH = os.path.join(base_dir, "model", "label_dict.pkl")
+            
+            print(f"\n=== Model Paths ===")
+            print(f"Base directory: {base_dir}")
+            print(f"Model path: {self.MODEL_PATH}")
+            print(f"Label dict path: {self.LABEL_DICT_PATH}")
+            
+            # Verify model directory exists
+            model_dir = os.path.join(base_dir, "model")
+            if not os.path.exists(model_dir):
+                print(f"Model directory not found. Creating at: {model_dir}")
+                os.makedirs(model_dir)
+            
+            # Verify model files exist
+            if not os.path.exists(self.MODEL_PATH):
+                raise FileNotFoundError(f"Model file not found at: {self.MODEL_PATH}")
+            if not os.path.exists(self.LABEL_DICT_PATH):
+                raise FileNotFoundError(f"Label dictionary not found at: {self.LABEL_DICT_PATH}")
+            
+            # Initialize face cascade
+            self.face_cascade = cv2.CascadeClassifier(
+                cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+            )
+            
+            # Load recognizer
+            self.load_recognizer()
+            print("Model initialization successful")
+            print("=====================\n")
+            
+        except Exception as e:
+            print(f"\n=== Initialization Error ===")
+            print(f"Error: {str(e)}")
+            print(f"Current working directory: {os.getcwd()}")
+            print("Directory contents:")
+            for root, dirs, files in os.walk(os.getcwd()):
+                level = root.replace(os.getcwd(), '').count(os.sep)
+                indent = ' ' * 4 * level
+                print(f"{indent}{os.path.basename(root)}/")
+                subindent = ' ' * 4 * (level + 1)
+                for f in files:
+                    print(f"{subindent}{f}")
+            print("============================\n")
+            raise
 
 
     def load_recognizer(self):

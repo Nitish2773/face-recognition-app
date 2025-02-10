@@ -22,7 +22,7 @@ class FaceRecognizer:
             # Check if running on Render
             if os.getenv('RENDER'):
                 # Use Render's secret file path
-                cred_path = '/etc/secrets/firebase-credentials.json'
+                cred_path = '/etc/secrets/firebase-credentials'
             else:
                 # Local development path
                 cred_path = './secrets/firebase-credentials.json'

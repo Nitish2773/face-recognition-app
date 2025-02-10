@@ -10,5 +10,5 @@ services:
       - key: RENDER
         value: true
     secrets:
-      - name: firebase-credentials
-        mountPath: /etc/secrets/firebase-credentials.json
+      - name: firebase-credentials  # Remove .json extension
+        mountPath: /etc/secrets/firebase-credentials  # Remove .json extension

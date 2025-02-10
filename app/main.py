@@ -21,53 +21,41 @@ logging.basicConfig(
 
 app = Flask(__name__)
 CORS(app)
-
-def initialize_firebase_credentials():
+ef initialize_firebase_credentials():
     """
     Initialize Firebase credentials from environment variable
-    Supports both file path and base64 encoded credentials
     """
     try:
-        # Try to get Firebase credentials path or base64 encoded credentials
+        # Get Firebase credentials path from environment variable
         firebase_cred_path = os.getenv('FIREBASE_CRED_PATH')
         
         if not firebase_cred_path:
             logging.error("FIREBASE_CRED_PATH environment variable not set")
             return None
         
-        # Check if it's a base64 encoded string
-        try:
-            # Attempt to decode base64
-            decoded_creds = base64.b64decode(firebase_cred_path)
-            
-            # Create a temporary file with decoded credentials
-            with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.json') as temp_file:
-                temp_file.write(decoded_creds)
-                temp_file_path = temp_file.name
-            
-            logging.info("Firebase credentials loaded from base64 encoded string")
-            return temp_file_path
+        # Check if file exists
+        if not os.path.exists(firebase_cred_path):
+            logging.error(f"Firebase credentials file not found: {firebase_cred_path}")
+            return None
         
-        except Exception as base64_error:
-            # If not base64, treat as file path
-            if os.path.exists(firebase_cred_path):
-                logging.info("Firebase credentials loaded from file path")
-                return firebase_cred_path
-            else:
-                logging.error(f"Firebase credentials file not found: {firebase_cred_path}")
-                return None
+        logging.info(f"Firebase credentials loaded from: {firebase_cred_path}")
+        return firebase_cred_path
     
     except Exception as e:
         logging.error(f"Firebase credentials initialization error: {e}")
         return None
-
 class FaceRecognizer:
     def __init__(self, firebase_cred_path):
         # Initialize Firebase
         try:
+            # Log the exact path being used
+            logging.info(f"Attempting to initialize Firebase with: {firebase_cred_path}")
+            
+            # Initialize Firebase
             cred = credentials.Certificate(firebase_cred_path)
             if not firebase_admin._apps:
                 firebase_admin.initialize_app(cred)
+            
             self.db = firestore.client()
             logging.info("Firebase initialized successfully")
         except Exception as e:
@@ -84,9 +72,16 @@ class FaceRecognizer:
         
         self.load_recognizer()
 
-    def load_recognizer(self):
+   def load_recognizer(self):
         """Load pre-trained face recognition model"""
         try:
+            # Verify model paths exist
+            if not os.path.exists(self.MODEL_PATH):
+                raise FileNotFoundError(f"Model file not found: {self.MODEL_PATH}")
+            
+            if not os.path.exists(self.LABEL_DICT_PATH):
+                raise FileNotFoundError(f"Label dictionary not found: {self.LABEL_DICT_PATH}")
+            
             # Load scikit-learn model
             with open(self.MODEL_PATH, "rb") as f:
                 self.face_recognizer = pickle.load(f)
@@ -99,6 +94,7 @@ class FaceRecognizer:
         except Exception as e:
             logging.error(f"Model loading error: {e}")
             raise
+
 
     def preprocess_image(self, image):
         """Preprocess and extract face from image"""
@@ -194,7 +190,7 @@ class FaceRecognizer:
 
 # Flask Routes
 def create_recognizer():
-    """Create recognizer with comprehensive error handling"""
+    """Create recognizer with error handling"""
     try:
         # Get Firebase credentials path
         firebase_cred_path = initialize_firebase_credentials()

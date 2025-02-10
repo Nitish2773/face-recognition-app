@@ -19,16 +19,26 @@ CORS(app)
 class FaceRecognizer:
     def __init__(self):
         try:
+            # Get the current working directory
+            current_dir = os.getcwd()
+            
             # Check if running on Render
-            if os.getenv('RENDER'):
+            if os.getenv('RENDER') == 'true':
                 # Use Render's secret file path
                 cred_path = '/etc/secrets/firebase-credentials'
+                print("Running on Render environment")
             else:
                 # Local development path
-                cred_path = './secrets/firebase-credentials.json'
+                cred_path = os.path.join(current_dir, 'secrets', 'firebase-credentials.json')
+                print("Running on local environment")
 
             print(f"Looking for Firebase credentials at: {cred_path}")
             
+            # Create secrets directory if it doesn't exist locally
+            if not os.getenv('RENDER') == 'true' and not os.path.exists('secrets'):
+                os.makedirs('secrets')
+                print("Created secrets directory")
+
             if not os.path.exists(cred_path):
                 raise FileNotFoundError(f"Firebase credentials not found at {cred_path}")
 

@@ -72,7 +72,7 @@ class FaceRecognizer:
         
         self.load_recognizer()
 
-   def load_recognizer(self):
+    def load_recognizer(self):
         """Load pre-trained face recognition model"""
         try:
             # Verify model paths exist

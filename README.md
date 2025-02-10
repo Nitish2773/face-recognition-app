@@ -1,9 +1,8 @@
-# CertifySecure: Blockchain-Integrated Student Certificate Validation App with Flutter
-## Flask-Based Face Recognition Backend
+# CertifySecure: Blockchain-Integrated Student Certificate Validation App with Flask-Based Face Recognition
 
 ## 🚀 Project Overview
 
-CertifySecure is a Flask-based face recognition system that utilizes OpenCV and Haarcascade for secure and efficient student authentication. This backend processes biometric authentication requests and integrates Firebase for data storage and authentication.
+CertifySecure is a Flask-based face recognition system utilizing OpenCV and Haarcascade for secure and efficient student authentication. This backend processes biometric authentication requests and integrates Firebase for data storage and authentication.
 
 ## 🔒 Key Features
 
@@ -21,13 +20,12 @@ CertifySecure is a Flask-based face recognition system that utilizes OpenCV and 
 ## 🛠 Technical Architecture
 
 ### Project Structure
-
 ```
 face-recognition-app/
 │
 ├── app/
-│   ├── recognize.py    # Face recognition processing
-│   ├── train.py        # Model training script
+│   ├── main.py        # Face recognition processing
+│   ├── train.py       # Model training script
 │
 ├── utils/
 │   ├── firebase_utils.py  # Firebase authentication integration
@@ -38,6 +36,7 @@ face-recognition-app/
 │   ├── face_recognition_model.pkl  # Trained face recognition model
 │
 ├── .env              # Environment variables configuration
+├── run.py            # Entry point to start Flask app
 ├── Dockerfile        # Docker container setup
 ├── requirements.txt  # Required dependencies
 ```
@@ -86,7 +85,7 @@ pip install -r requirements.txt
 cp .env.example .env  # Configure Firebase and Google Drive credentials
 
 # Run Flask App
-python app/recognize.py
+python run.py
 ```
 
 ## 🔐 Security Measures
@@ -126,6 +125,37 @@ def recognize_face():
 - **Gunicorn** for production-grade WSGI serving
 - **Google Cloud Run / AWS Lambda** for scalable hosting
 - **Render** for easy deployment with auto-scaling
+
+### **Deploying on Render**
+
+1. **Sign Up for Render** at [Render](https://render.com/).
+2. **Create a New Web Service**.
+3. **Connect GitHub Repository**.
+4. **Select Environment**:
+   - **Runtime**: Python 3.9+
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `gunicorn --bind 0.0.0.0:5000 run:app`
+5. **Add Environment Variables** (from `.env` file).
+6. **Deploy & Monitor Logs**.
+
+## 📝 Setting Up Google Drive API
+
+### **Steps to Get `credentials.json` for Google Drive API**
+1. **Go to** [Google Cloud Console](https://console.cloud.google.com/).
+2. **Create a New Project**.
+3. **Enable Google Drive API**.
+4. **Go to Credentials** → **Create Credentials** → **Service Account**.
+5. **Generate JSON Key** and download it.
+6. **Store this `credentials.json` file** in the project directory.
+
+## 🔐 Obtaining Firebase Service Account JSON File
+
+1. **Go to** [Firebase Console](https://console.firebase.google.com/).
+2. **Select Your Project**.
+3. **Go to Project Settings** → **Service Accounts**.
+4. **Generate a new private key**.
+5. **Download the JSON file** and store it in the project directory.
+
 ## 📄 Licensing
 - Open-source under the **MIT License**
 
@@ -135,5 +165,7 @@ def recognize_face():
 3. **Commit Changes**
 4. **Push to Branch & Submit PR**
 
+## 📞 Contact & Support
+- **Email**: [support@Nitish](mailto:nitishkamisetti123@gmail.com)
 
 

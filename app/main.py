@@ -1,16 +1,20 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import cv2
-import numpy as np
-import pickle
 import os
 import logging
 import base64
 import tempfile
+import numpy as np
+import cv2
+import pickle
 import firebase_admin
 from firebase_admin import credentials, firestore
 from datetime import datetime
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 from sklearn.neighbors import KNeighborsClassifier
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(
@@ -19,23 +23,53 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 
+# Create Flask application
 app = Flask(__name__)
 CORS(app)
+
+def debug_environment():
+    """Log environment details for debugging"""
+    logging.info("=== Environment Debug ===")
+    logging.info(f"Current Working Directory: {os.getcwd()}")
+    logging.info(f"Script Directory: {os.path.dirname(os.path.abspath(__file__))}")
+    
+    logging.info("\n=== Environment Variables ===")
+    for key, value in os.environ.items():
+        if any(tag in key.lower() for tag in ['cred', 'firebase', 'path']):
+            logging.info(f"{key}: {value}")
+
 def initialize_firebase_credentials():
     """
-    Initialize Firebase credentials from environment variable
+    Initialize Firebase credentials with comprehensive error handling
     """
     try:
         # Get Firebase credentials path from environment variable
         firebase_cred_path = os.getenv('FIREBASE_CRED_PATH')
         
+        # Log all potential paths for debugging
+        logging.info(f"Attempting to load credentials from: {firebase_cred_path}")
+        
         if not firebase_cred_path:
             logging.error("FIREBASE_CRED_PATH environment variable not set")
+            debug_environment()
             return None
         
-        # Check if file exists
+        # Normalize and expand path
+        firebase_cred_path = os.path.abspath(os.path.expanduser(firebase_cred_path))
+        
+        # Detailed path verification
         if not os.path.exists(firebase_cred_path):
             logging.error(f"Firebase credentials file not found: {firebase_cred_path}")
+            
+            # List files in the directory for debugging
+            try:
+                directory = os.path.dirname(firebase_cred_path)
+                logging.info(f"Files in directory {directory}:")
+                for file in os.listdir(directory):
+                    logging.info(file)
+            except Exception as list_error:
+                logging.error(f"Error listing directory: {list_error}")
+            
             return None
         
         logging.info(f"Firebase credentials loaded from: {firebase_cred_path}")
@@ -44,11 +78,11 @@ def initialize_firebase_credentials():
     except Exception as e:
         logging.error(f"Firebase credentials initialization error: {e}")
         return None
+
 class FaceRecognizer:
     def __init__(self, firebase_cred_path):
         # Initialize Firebase
         try:
-            # Log the exact path being used
             logging.info(f"Attempting to initialize Firebase with: {firebase_cred_path}")
             
             # Initialize Firebase
@@ -75,26 +109,28 @@ class FaceRecognizer:
     def load_recognizer(self):
         """Load pre-trained face recognition model"""
         try:
-            # Verify model paths exist
-            if not os.path.exists(self.MODEL_PATH):
-                raise FileNotFoundError(f"Model file not found: {self.MODEL_PATH}")
+            # Verify model paths exist with absolute paths
+            model_path = os.path.abspath(self.MODEL_PATH)
+            label_path = os.path.abspath(self.LABEL_DICT_PATH)
             
-            if not os.path.exists(self.LABEL_DICT_PATH):
-                raise FileNotFoundError(f"Label dictionary not found: {self.LABEL_DICT_PATH}")
+            if not os.path.exists(model_path):
+                raise FileNotFoundError(f"Model file not found: {model_path}")
+            
+            if not os.path.exists(label_path):
+                raise FileNotFoundError(f"Label dictionary not found: {label_path}")
             
             # Load scikit-learn model
-            with open(self.MODEL_PATH, "rb") as f:
+            with open(model_path, "rb") as f:
                 self.face_recognizer = pickle.load(f)
             
             # Load label dictionary
-            with open(self.LABEL_DICT_PATH, "rb") as f:
+            with open(label_path, "rb") as f:
                 self.label_dict = pickle.load(f)
             
             logging.info("Model and label dictionary loaded successfully")
         except Exception as e:
             logging.error(f"Model loading error: {e}")
             raise
-
 
     def preprocess_image(self, image):
         """Preprocess and extract face from image"""
@@ -188,10 +224,12 @@ class FaceRecognizer:
         except Exception as e:
             logging.error(f"Event logging error: {e}")
 
-# Flask Routes
 def create_recognizer():
-    """Create recognizer with error handling"""
+    """Create recognizer with comprehensive error handling"""
     try:
+        # Debug environment
+        debug_environment()
+        
         # Get Firebase credentials path
         firebase_cred_path = initialize_firebase_credentials()
         

@@ -13,4 +13,6 @@ venv/
 env/
 
 # Temporary files
-temp/
+temp/secrets/
+*.json
+.env

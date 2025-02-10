@@ -19,34 +19,29 @@ CORS(app)
 class FaceRecognizer:
     def __init__(self):
         try:
-            # Get Firebase credentials
-            if os.getenv('FIREBASE_CRED_PATH'):
-                # Option 1: Using credential file path
-                cred = credentials.Certificate(os.getenv('FIREBASE_CRED_PATH', 'C:/face-recognition-app/secrets/firebase-credentials.json'))
+            # Check if running on Render
+            if os.getenv('RENDER'):
+                # Use Render's secret file path
+                cred_path = '/etc/secrets/firebase-credentials.json'
             else:
-                # Option 2: Using environment variables
-                firebase_cred = {
-                    "type": os.getenv("FIREBASE_TYPE"),
-                    "project_id": os.getenv("FIREBASE_PROJECT_ID"),
-                    "private_key_id": os.getenv("FIREBASE_PRIVATE_KEY_ID"),
-                    "private_key": os.getenv("FIREBASE_PRIVATE_KEY").replace('\\n', '\n') if os.getenv("FIREBASE_PRIVATE_KEY") else None,
-                    "client_email": os.getenv("FIREBASE_CLIENT_EMAIL"),
-                    "client_id": os.getenv("FIREBASE_CLIENT_ID"),
-                    "auth_uri": os.getenv("FIREBASE_AUTH_URI"),
-                    "token_uri": os.getenv("FIREBASE_TOKEN_URI"),
-                    "auth_provider_x509_cert_url": os.getenv("FIREBASE_AUTH_PROVIDER_CERT_URL"),
-                    "client_x509_cert_url": os.getenv("FIREBASE_CLIENT_CERT_URL")
-                }
-                cred = credentials.Certificate(firebase_cred)
+                # Local development path
+                cred_path = './secrets/firebase-credentials.json'
 
+            print(f"Looking for Firebase credentials at: {cred_path}")
+            
+            if not os.path.exists(cred_path):
+                raise FileNotFoundError(f"Firebase credentials not found at {cred_path}")
+
+            cred = credentials.Certificate(cred_path)
             if not firebase_admin._apps:
                 firebase_admin.initialize_app(cred)
             self.db = firestore.client()
             print("Firebase initialized successfully")
         except Exception as e:
             print(f"Failed to initialize Firebase: {e}")
+            print(f"Current working directory: {os.getcwd()}")
+            print(f"Directory contents: {os.listdir('.')}")
             exit(1)
-
         # Get model paths from environment variables or use defaults
         self.MODEL_PATH = os.getenv('MODEL_PATH', "model/face_recognition_model.yml")
         self.LABEL_DICT_PATH = os.getenv('LABEL_DICT_PATH', "model/label_dict.pkl")

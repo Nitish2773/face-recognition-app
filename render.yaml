@@ -7,8 +7,8 @@ services:
     envVars:
       - key: PORT
         value: 5000
-      - key: FIREBASE_CRED_PATH
-        value: /etc/secrets/firebase-credentials.json
+      - key: RENDER
+        value: true
     secrets:
       - name: firebase-credentials
         mountPath: /etc/secrets/firebase-credentials.json

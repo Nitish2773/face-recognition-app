@@ -193,7 +193,7 @@ class FaceRecognizer:
             logging.error(f"Event logging error: {e}")
 
 # Flask Routes
-ef create_recognizer():
+def create_recognizer():
     """Create recognizer with comprehensive error handling"""
     try:
         # Get Firebase credentials path

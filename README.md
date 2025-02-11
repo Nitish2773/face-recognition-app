@@ -1,4 +1,5 @@
-# CertifySecure: Blockchain-Integrated Student Certificate Validation App with Flask-Based Face Recognition
+# CertifySecure: Blockchain-Integrated Student Certificate Validation App with FLutter  
+# Flask-Based Face Recognition
 
 ## 🚀 Project Overview
 

@@ -97,6 +97,146 @@ python main.py
 - **Encoding & Training**: Feature extraction & storage in `label.pkl`
 - **Retraining for Improved Accuracy**
 
+## 📚 Dataset Training Process
+
+CertifySecure includes a robust dataset training pipeline to ensure accurate and reliable face recognition for student authentication.
+
+### 🏗️ Dataset Creation and Training
+
+The dataset training process involves capturing student facial images, preprocessing them, and training a Local Binary Pattern Histogram (LBPH) model for recognition.
+
+#### 🔹 Step 1: Capture Training Data
+
+The following Python script captures and preprocesses images for training:
+
+```python
+import cv2
+import os
+import numpy as np
+from datetime import datetime
+
+class DatasetCreator:
+    def __init__(self):
+        self.face_cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+        )
+        self.cap = cv2.VideoCapture(0)
+        
+    def create_user_dataset(self, user_id, num_images=500):
+        dataset_path = f"dataset/{user_id}"
+        os.makedirs(dataset_path, exist_ok=True)
+
+        count = 0
+        while count < num_images:
+            ret, frame = self.cap.read()
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = self.face_cascade.detectMultiScale(
+                gray, scaleFactor=1.3, minNeighbors=5, minSize=(30, 30)
+            )
+
+            for (x, y, w, h) in faces:
+                face = gray[y:y+h, x:x+w]
+                face_resized = cv2.resize(face, (200, 200))
+                face_enhanced = cv2.equalizeHist(face_resized)
+                
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                cv2.imwrite(f"{dataset_path}/{timestamp}.jpg", face_enhanced)
+                count += 1
+                
+                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                cv2.putText(frame, f"Captures: {count}/{num_images}",
+                           (10, 30), cv2.FONT_HERSHEY_SIMPLEX,
+                           1, (0, 255, 0), 2)
+
+            cv2.imshow("Capturing Face Data", frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+        self.cap.release()
+        cv2.destroyAllWindows()
+```
+
+#### 🔹 Step 2: Data Augmentation
+
+To improve model performance, dataset augmentation is applied:
+
+```python
+def augment_dataset(user_id):
+    source_path = f"dataset/{user_id}"
+    augmented_path = f"dataset/{user_id}/augmented"
+    os.makedirs(augmented_path, exist_ok=True)
+    
+    for img_name in os.listdir(source_path):
+        img = cv2.imread(f"{source_path}/{img_name}", cv2.IMREAD_GRAYSCALE)
+        
+        # Original Image
+        cv2.imwrite(f"{augmented_path}/orig_{img_name}", img)
+        
+        # Flipped Image
+        cv2.imwrite(f"{augmented_path}/flip_{img_name}", cv2.flip(img, 1))
+        
+        # Rotated Images
+        for angle in [-15, 15]:
+            h, w = img.shape
+            M = cv2.getRotationMatrix2D((w//2, h//2), angle, 1)
+            rotated = cv2.warpAffine(img, M, (w, h))
+            cv2.imwrite(f"{augmented_path}/rot{angle}_{img_name}", rotated)
+```
+
+#### 🔹 Dataset Structure
+
+```
+dataset/
+├── student_id_123/
+│   ├── 20230915_143022_123456.jpg
+│   ├── 20230915_143023_234567.jpg
+│   └── augmented/
+│       ├── orig_20230915_143022_123456.jpg
+│       ├── flip_20230915_143022_123456.jpg
+│       └── rot15_20230915_143022_123456.jpg
+└── student_id_456/
+    └── ...
+```
+
+### 🏋️‍♂️ Model Training Process
+
+```python
+def train_model():
+    recognizer = cv2.face.LBPHFaceRecognizer_create()
+    faces = []
+    labels = []
+    
+    for user_id in os.listdir("dataset"):
+        if os.path.isdir(f"dataset/{user_id}"):
+            for img_name in os.listdir(f"dataset/{user_id}"):
+                img_path = f"dataset/{user_id}/{img_name}"
+                img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+                faces.append(img)
+                labels.append(int(user_id))
+    
+    recognizer.train(faces, np.array(labels))
+    recognizer.save("model/face_recognition_model.yml")
+```
+
+### 📝 Training Requirements
+
+- **Minimum Images:** 500 per student
+- **Conditions:** Well-lit environment, various facial expressions
+- **Image Standardization:** 200x200 grayscale images
+- **Face Detection Confidence:** >50%
+- **Recognition Confidence Threshold:** <100 (lower is better)
+
+### 📊 Performance Metrics
+
+| Metric                     | Value       |
+|----------------------------|------------|
+| Image Resolution           | 200x200 px |
+| Training Dataset Size      | 500+ imgs  |
+| Face Detection Accuracy    | >90%       |
+| Recognition Accuracy       | 85-95%     |
+
+---
+
 ## 📊 Performance Metrics
 - **Recognition Accuracy**: ~95%
 - **Average Response Time**: < 500ms

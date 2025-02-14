@@ -1,12 +1,10 @@
-# CertifySecure: Blockchain-Integrated Student Certificate Validation App with FLutter  
-# Flask-Based Face Recognition
+# CertifySecure: Blockchain-Integrated Student Certificate Validation App with Flutter  
+# Flask-Based Face Recognition  
 
 ## 🚀 Project Overview
-
 CertifySecure is a Flask-based face recognition system utilizing OpenCV and Haarcascade for secure and efficient student authentication. This backend processes biometric authentication requests and integrates Firebase for data storage and authentication.
 
 ## 🔒 Key Features
-
 ### Face Recognition Authentication
 - **Uses OpenCV and Haarcascade** for face detection and recognition.
 - **Low-latency recognition process** ensuring quick authentication.
@@ -18,7 +16,7 @@ CertifySecure is a Flask-based face recognition system utilizing OpenCV and Haar
 - **Firebase Admin SDK** for user management and authentication.
 - **Real-time authentication logs** for security monitoring.
 
-## 🫠 Technical Architecture
+## 🨠 Technical Architecture
 
 ### Updated Project Structure
 ```
@@ -99,17 +97,10 @@ python main.py
 - **Retraining for Improved Accuracy**
 
 ## 📚 Dataset Training Process
-
-CertifySecure includes a robust dataset training pipeline to ensure accurate and reliable face recognition for student authentication.
-
-### 🏗️ Dataset Creation and Training
-
+### Dataset Creation and Training
 The dataset training process involves capturing student facial images, preprocessing them, and training a Local Binary Pattern Histogram (LBPH) model for recognition.
 
 #### 🔹 Step 1: Capture Training Data
-
-The following Python script captures and preprocesses images for training:
-
 ```python
 import cv2
 import os
@@ -122,113 +113,29 @@ class DatasetCreator:
             cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
         )
         self.cap = cv2.VideoCapture(0)
-        
+    
     def create_user_dataset(self, user_id, num_images=500):
         dataset_path = f"dataset/{user_id}"
         os.makedirs(dataset_path, exist_ok=True)
-
         count = 0
         while count < num_images:
             ret, frame = self.cap.read()
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            faces = self.face_cascade.detectMultiScale(
-                gray, scaleFactor=1.3, minNeighbors=5, minSize=(30, 30)
-            )
-
+            faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5, minSize=(30, 30))
             for (x, y, w, h) in faces:
                 face = gray[y:y+h, x:x+w]
                 face_resized = cv2.resize(face, (200, 200))
-                face_enhanced = cv2.equalizeHist(face_resized)
-                
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-                cv2.imwrite(f"{dataset_path}/{timestamp}.jpg", face_enhanced)
+                cv2.imwrite(f"{dataset_path}/{timestamp}.jpg", face_resized)
                 count += 1
-                
-                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
-                cv2.putText(frame, f"Captures: {count}/{num_images}",
-                           (10, 30), cv2.FONT_HERSHEY_SIMPLEX,
-                           1, (0, 255, 0), 2)
-
-            cv2.imshow("Capturing Face Data", frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-        self.cap.release()
-        cv2.destroyAllWindows()
 ```
 
-#### 🔹 Step 2: Data Augmentation
-
-To improve model performance, dataset augmentation is applied:
-
-```python
-def augment_dataset(user_id):
-    source_path = f"dataset/{user_id}"
-    augmented_path = f"dataset/{user_id}/augmented"
-    os.makedirs(augmented_path, exist_ok=True)
-    
-    for img_name in os.listdir(source_path):
-        img = cv2.imread(f"{source_path}/{img_name}", cv2.IMREAD_GRAYSCALE)
-        
-        # Original Image
-        cv2.imwrite(f"{augmented_path}/orig_{img_name}", img)
-        
-        # Flipped Image
-        cv2.imwrite(f"{augmented_path}/flip_{img_name}", cv2.flip(img, 1))
-        
-        # Rotated Images
-        for angle in [-15, 15]:
-            h, w = img.shape
-            M = cv2.getRotationMatrix2D((w//2, h//2), angle, 1)
-            rotated = cv2.warpAffine(img, M, (w, h))
-            cv2.imwrite(f"{augmented_path}/rot{angle}_{img_name}", rotated)
-```
-
-#### 🔹 Dataset Structure
-
-```
-dataset/
-├── student_id_123/
-│   ├── 20230915_143022_123456.jpg
-│   ├── 20230915_143023_234567.jpg
-│   └── augmented/
-│       ├── orig_20230915_143022_123456.jpg
-│       ├── flip_20230915_143022_123456.jpg
-│       └── rot15_20230915_143022_123456.jpg
-└── student_id_456/
-    └── ...
-```
-
-### 🏋️‍♂️ Model Training Process
-
-```python
-def train_model():
-    recognizer = cv2.face.LBPHFaceRecognizer_create()
-    faces = []
-    labels = []
-    
-    for user_id in os.listdir("dataset"):
-        if os.path.isdir(f"dataset/{user_id}"):
-            for img_name in os.listdir(f"dataset/{user_id}"):
-                img_path = f"dataset/{user_id}/{img_name}"
-                img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
-                faces.append(img)
-                labels.append(int(user_id))
-    
-    recognizer.train(faces, np.array(labels))
-    recognizer.save("model/face_recognition_model.yml")
-```
-
-### 📝 Training Requirements
-
+### 💪 Training Requirements
 - **Minimum Images:** 500 per student
 - **Conditions:** Well-lit environment, various facial expressions
-- **Image Standardization:** 200x200 grayscale images
-- **Face Detection Confidence:** >50%
 - **Recognition Confidence Threshold:** <100 (lower is better)
 
-### 📊 Performance Metrics
-
+## 📊 Performance Metrics
 | Metric                     | Value       |
 |----------------------------|------------|
 | Image Resolution           | 200x200 px |
@@ -236,15 +143,8 @@ def train_model():
 | Face Detection Accuracy    | >90%       |
 | Recognition Accuracy       | 85-95%     |
 
----
-
-## 📊 Performance Metrics
-- **Recognition Accuracy**: ~95%
-- **Average Response Time**: < 500ms
-
-## 📝 API Endpoints
-
-### **Face Recognition Endpoint**
+## 🌐 API Endpoints
+### Face Recognition Endpoint
 ```python
 @app.route('/recognize', methods=['POST'])
 def recognize_face():
@@ -254,69 +154,27 @@ def recognize_face():
     # Return authentication status
 ```
 
-## 🌐 Deployment Options
+## 🌍 Deployment Options
 - **Docker Deployment** for containerized execution
-- **Gunicorn** for production-grade WSGI serving
 - **Google Cloud Run / AWS Lambda** for scalable hosting
 - **Render** for easy deployment with auto-scaling
 
-### **Render Deployment Configuration**
-Create a `render.yaml` file in the project root:
-```yaml
-services:
-  - type: web
-    name: face-recognition-app
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
-    envVars:
-      - key: PORT
-        value: 5000
-      - key: RENDER
-        value: true
-    secrets:
-      - name: firebase-credentials  # Remove .json extension
-        mountPath: /etc/secrets/firebase-credentials  # Remove .json extension
-```
+## 🌐 Setting Up Google Drive API
+1. **Enable Google Drive API** in [Google Cloud Console](https://console.cloud.google.com/).
+2. **Create a Service Account** and **Generate JSON Key**.
+3. **Store `credentials.json` securely in the project.**
 
-### **Deploying on Render**
+## 🔒 Obtaining Firebase Service Account JSON File
+1. **Go to [Firebase Console](https://console.firebase.google.com/)**.
+2. **Select Your Project** and navigate to **Service Accounts**.
+3. **Generate a new private key** and download it.
 
-1. **Sign Up for Render** at [Render](https://render.com/).
-2. **Create a New Web Service**.
-3. **Connect GitHub Repository**.
-4. **Select Environment**:
-   - **Runtime**: Python 3.9+
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `python main.py`
-5. **Add Environment Variables** (from `.env` file).
-6. **Deploy & Monitor Logs**.
-
-## 🔒 Setting Up Google Drive API
-
-### **Steps to Get `credentials.json` for Google Drive API**
-1. **Go to** [Google Cloud Console](https://console.cloud.google.com/).
-2. **Create a New Project**.
-3. **Enable Google Drive API**.
-4. **Go to Credentials** → **Create Credentials** → **Service Account**.
-5. **Generate JSON Key** and download it.
-6. **Store this `credentials.json` file** in the project directory.
-
-## 🔐 Obtaining Firebase Service Account JSON File
-
-1. **Go to** [Firebase Console](https://console.firebase.google.com/).
-2. **Select Your Project**.
-3. **Go to Project Settings** → **Service Accounts**.
-4. **Generate a new private key**.
-5. **Download the JSON file** and store it in `secrets/firebase-credentials`.
-
-## 📝 Licensing
-- Open-source under the **MIT License**
-
-## 🤝 Contributing
-1. **Fork the Repository**
-2. **Create a New Branch** (`feature-new-feature`)
-3. **Commit Changes**
-4. **Push to Branch & Submit PR**
+## 📚 Future Enhancements
+- **QR Code Verification** for instant certificate validation.
+- **UI Enhancements** for better user experience.
+- **Face Recognition with Deep Learning Models** for improved accuracy.
 
 ## 📞 Contact & Support
-- **Email**: [support@Nitish](mailto:nitishkamisetti123@gmail.com)
+- **Email**: nitishkamisetti123@gmail.com
+- **LinkedIn**: [Sri Nitish Kamisetti](https://www.linkedin.com/in/sri-nitish-kamisetti/)
+- **GitHub**: [Nitish2773](https://github.com/Nitish2773)
